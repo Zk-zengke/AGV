@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lizhi.mapper.AgvLogMapper">
+
+    <select id="pageQuery" resultType="com.lizhi.domain.po.AgvLog">
+        select * from agv_log order by timestamp desc
+    </select>
+</mapper>
+
+

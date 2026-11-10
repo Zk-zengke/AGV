@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lizhi.mapper.AgvMapper">
+    <resultMap id="AgvResultMap" type="com.lizhi.domain.po.AgvSnapshot">
+        <result property="agvCode" column="agv_code"/>
+        <result property="x" column="x"/>
+        <result property="y" column="y"/>
+        <result property="direction" column="direction"/>
+        <result property="status" column="status"/>
+        <result property="battery" column="battery"/>
+        <result property="speed" column="speed"/>
+        <result property="taskId" column="task_id"/>
+        <result property="lastUpdate" column="last_update"/>
+        <result property="plannedPath" column="planned_path" typeHandler="com.lizhi.handler.NodeListTypeHandler"/>
+        <result property="pathIndex" column="path_index"/>
+        <result property="isCharge" column="is_charge"/>
+    </resultMap>
+    <insert id="insertAgv">
+        insert into agv_snapshot (agv_code, x, y, direction, status, battery, speed, task_id, last_update, planned_path,is_charge)
+        values (#{agvCode}, #{x}, #{y}, #{direction}, #{status}, #{battery}, #{speed}, #{taskId}, #{lastUpdate}, #{plannedPath, typeHandler=com.lizhi.handler.NodeListTypeHandler},#{isCharge})
+    </insert>
+    <update id="updateAgv">
+        update agv_snapshot
+        <set>
+            task_id = #{taskId,jdbcType=INTEGER},
+            planned_path = #{plannedPath, typeHandler=com.lizhi.handler.NodeListTypeHandler,jdbcType=VARCHAR},
+            <if test="x != null">
+                x = #{x},
+            </if>
+            <if test="y != null">
+                y = #{y},
+            </if>
+            <if test="direction != null">
+                direction = #{direction},
+            </if>
+            <if test="status != null">
+                status = #{status},
+            </if>
+            <if test="battery != null">
+                battery = #{battery},
+            </if>
+            <if test="speed != null">
+                speed = #{speed},
+            </if>
+            <if test="lastUpdate != null">
+                last_update = #{lastUpdate},
+            </if>
+            <if test="pathIndex != null">
+                path_index = #{pathIndex},
+            </if>
+            <if test="isCharge != null">
+                is_charge = #{isCharge},
+            </if>
+            <if test="description != null">
+                description = #{description},
+            </if>
+        </set>
+        where agv_code = #{agvCode}
+    </update>
+    <update id="updateSpeed">
+        update agv_snapshot
+        <set>
+            <if test="speed != null">
+                speed = #{speed}
+            </if>
+        </set>
+        where agv_code = #{agvCode}
+    </update>
+    <select id="getAgv" resultMap="AgvResultMap">
+        select * from agv_snapshot where agv_code = #{agvCode}
+    </select>
+    <select id="getAllAgv" resultMap="AgvResultMap">
+        select * from agv_snapshot
+    </select>
+</mapper>
+

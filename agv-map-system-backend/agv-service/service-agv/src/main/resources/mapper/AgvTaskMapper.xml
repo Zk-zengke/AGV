@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lizhi.mapper.AgvTaskMapper">
+    <update id="updateTask">
+        update agv_task
+        <set>
+             <if test="status != null">
+                status = #{status},
+            </if>
+            <if test="description != null">
+                description = #{description},
+            </if>
+            <if test="actualEndTime != null">
+                actual_end_time = #{actualEndTime},
+            </if>
+            <if test="passMidPoint != null">
+                pass_mid_point = #{passMidPoint},
+            </if>
+        </set>
+        where task_id = #{taskId}
+    </update>
+
+    <select id="pageQuery" resultType="com.lizhi.domain.po.AgvTask">
+        select * from agv_task
+        <where>
+            <if test="taskCode != null">
+                and task_code like concat('%',#{taskCode},'%')
+            </if>
+        </where>
+        order by task_id desc
+    </select>
+    <select id="getById" resultType="com.lizhi.domain.po.AgvTask">
+        select * from agv_task where task_id = #{taskId}
+    </select>
+</mapper>
+

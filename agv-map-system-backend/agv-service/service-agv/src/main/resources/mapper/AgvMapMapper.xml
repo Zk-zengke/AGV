@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lizhi.mapper.AgvMapMapper">
+
+    <resultMap id="AgvMapResultMap" type="com.lizhi.domain.po.AgvMap">
+        <id property="mapId" column="map_id"/>
+        <result property="mapCode" column="map_code"/>
+        <result property="mapName" column="map_name"/>
+        <result property="width" column="width"/>
+        <result property="height" column="height"/>
+        <result property="cellSize" column="cell_size"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="description" column="description"/>
+        <result property="version" column="version"/>
+        <result property="isCurrent" column="is_current"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="obstacles" column="obstacles" typeHandler="com.lizhi.handler.ListTypeHandler"/>
+        <result property="stations" column="stations" typeHandler="com.lizhi.handler.ListTypeHandler"/>
+    </resultMap>
+
+    <insert id="saveAgv" parameterType="com.lizhi.domain.po.AgvMap">
+        INSERT INTO agv_map (map_code, map_name, width, height, cell_size,version,is_current,parent_id, obstacles, stations)
+        VALUES (#{mapCode}, #{mapName}, #{width}, #{height}, #{cellSize},#{version},#{isCurrent},#{parentId},
+                #{obstacles, typeHandler=com.lizhi.handler.ListTypeHandler},
+                #{stations, typeHandler=com.lizhi.handler.ListTypeHandler})
+    </insert>
+    <update id="updateMap">
+        update agv_map
+        <set>
+            <if test="mapCode != null">
+                map_code = #{mapCode},
+            </if>
+            <if test="mapName != null">
+                map_name = #{mapName},
+            </if>
+            <if test="width != null">
+                width = #{width},
+            </if>
+            <if test="height != null">
+                height = #{height},
+            </if>
+            <if test="cellSize != null">
+                cell_size = #{cellSize},
+            </if>
+            <if test="version != null">
+                version = #{version},
+            </if>
+            <if test="isCurrent != null">
+                is_current = #{isCurrent},
+            </if>
+            <if test="parentId != null">
+                parent_id = #{parentId},
+            </if>
+            <if test="obstacles != null">
+                obstacles = #{obstacles, typeHandler=com.lizhi.handler.ListTypeHandler},
+            </if>
+            <if test="stations != null">
+                stations = #{stations, typeHandler=com.lizhi.handler.ListTypeHandler},
+            </if>
+        </set>
+        where map_id = #{mapId}
+    </update>
+
+    <select id="getCurrentMap" resultMap="AgvMapResultMap">
+        select * from agv_map where is_current = 1
+    </select>
+
+    <select id="getMapById" resultMap="AgvMapResultMap">
+        select * from agv_map where map_id = #{mapId}
+    </select>
+    <select id="getStation" resultMap="AgvMapResultMap">
+        select stations from agv_map where is_current = 1
+    </select>
+</mapper>
+

@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: service-agv
+  datasource:
+    url: jdbc:mysql://localhost:3306/agv_system?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  cloud:
+    nacos:
+      server-addr: 127.0.0.1:8848
+      config:
+        import-check:
+          enabled: false
+    sentinel:
+      transport:
+        dashboard: localhost:8080
+      eager: true
+server:
+  port: 8000
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+seata:
+  enabled: false
+
+
