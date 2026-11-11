@@ -1,0 +1,45 @@
+/* 全局重置与深色工业风主题 */
+:root {
+  --bg: #141c28;
+  --panel: #1d2939;
+  --border: #2c3a4f;
+  --text: #e5ebf3;
+  --text-dim: #9fb0c6;
+  --accent: #38e1c6;
+  --sans: 'Microsoft YaHei UI', 'PingFang SC', 'Segoe UI', sans-serif;
+  --mono: Consolas, 'JetBrains Mono', monospace;
+
+  color-scheme: dark;
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+}
+
+#app {
+  height: 100%;
+}
+
+ul {
+  list-style: none;
+}
+
+button {
+  font-family: inherit;
+}
+
+canvas {
+  display: block;
+}

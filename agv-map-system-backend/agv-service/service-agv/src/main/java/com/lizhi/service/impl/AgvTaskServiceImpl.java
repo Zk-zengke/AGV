@@ -9,6 +9,7 @@ import com.lizhi.mapper.AgvMapper;
 import com.lizhi.mapper.AgvTaskMapper;
 import com.lizhi.result.PageResult;
 import com.lizhi.service.AgvTaskService;
+import com.lizhi.utils.AgvSimulator;
 import org.springframework.stereotype.Service;
 
 
@@ -17,10 +18,12 @@ public class AgvTaskServiceImpl implements AgvTaskService {
 
     private final AgvTaskMapper agvTaskMapper;
     private final AgvMapper agvMapper;
+    private final AgvSimulator agvSimulator;
 
-    public AgvTaskServiceImpl(AgvTaskMapper agvTaskMapper, AgvMapper agvMapper) {
+    public AgvTaskServiceImpl(AgvTaskMapper agvTaskMapper, AgvMapper agvMapper, AgvSimulator agvSimulator) {
         this.agvTaskMapper = agvTaskMapper;
         this.agvMapper = agvMapper;
+        this.agvSimulator = agvSimulator;
     }
 
     /**
@@ -47,5 +50,11 @@ public class AgvTaskServiceImpl implements AgvTaskService {
         agv.setStatus("idle");
         agvMapper.updateAgv(agv);
         agvTaskMapper.updateTask(agvTask);
+
+        // 同步停止内存仿真车辆：否则仿真线程会继续移动，并把 running 状态写回覆盖数据库
+        AgvSnapshot car = agvSimulator.getCar(agvTask.getAgvCode());
+        if (car != null) {
+            car.setStatus("idle");
+        }
     }
 }

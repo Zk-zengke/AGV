@@ -33,4 +33,8 @@ public class AgvSnapshot implements Serializable {
     private String lastUpdate; // ISO8601 时间字符串，如 2025-09-19T08:30:00.000Z
     private Integer isCharge; //0未在充电1在充电
     private List<AgvPath> agvPaths;
+
+    // 最终终点，仅内存使用、不持久化，供时间窗每拍重规划时定位最终目标
+    @TableField(exist = false)
+    private Node finalGoal;
 }

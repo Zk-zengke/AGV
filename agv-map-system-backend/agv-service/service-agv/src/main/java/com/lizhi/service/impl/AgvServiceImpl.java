@@ -92,8 +92,8 @@ public class AgvServiceImpl implements AgvService {
         Node currentNode = new Node(currentPoint.getX(), currentPoint.getY());
         Node startNode = new Node(startPoint.getX(), startPoint.getY());
         Node endNode = new Node(endPoint.getX(), endPoint.getY());
-        //判断当前点位是否为开始站点
-        if(currentPoint != startPoint){
+        //判断当前点位是否为开始站点（按坐标比较，而非对象引用）
+        if(currentPoint.getX() != startPoint.getX() || currentPoint.getY() != startPoint.getY()){
             agvTask.setPassMidPoint(1);
             List<Node> startPath = agvUnlock.realTimePath(currentNode, startNode,null,agvCode);
             List<Node> endPath = agvUnlock.realTimePath(startNode, endNode,null,agvCode);
@@ -106,6 +106,7 @@ public class AgvServiceImpl implements AgvService {
             pathList.addAll(startPath);
         }
         agv.setPlannedPath(pathList);
+        agv.setFinalGoal(endNode);
         agv.setPathIndex(0);
         agv.setStatus("running");
         agv.setSpeed(150);

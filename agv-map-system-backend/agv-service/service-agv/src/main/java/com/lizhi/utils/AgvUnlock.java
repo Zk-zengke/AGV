@@ -3,6 +3,8 @@ package com.lizhi.utils;
 import com.lizhi.astart.map.GridMap;
 import com.lizhi.astart.service.AStarSolver;
 import com.lizhi.astart.service.NoPathFoundException;
+import com.lizhi.astart.timewindow.ReservationTable;
+import com.lizhi.astart.timewindow.TimeWindowAStar;
 import com.lizhi.domain.dto.AgvTaskDTO;
 import com.lizhi.domain.po.*;
 import com.lizhi.mapper.AgvLogMapper;
@@ -65,5 +67,30 @@ public class AgvUnlock {
             throw new RuntimeException(e);
         }
 
+    }
+
+    /**
+     * 时间窗冲突避障规划：在静态障碍网格基础上，结合全局预约表做时空 A* 搜索。
+     */
+    public List<Node> timeWindowPath(Node start, Node goal, ReservationTable table)
+            throws NoPathFoundException {
+        AgvMap currentMap = agvMapMapper.getCurrentMap();
+        GridMap gridMap = new GridMap(false, currentMap.getHeight(), currentMap.getWidth());
+
+        List<AgvMap.Obstacle> obstacles =
+                agvConversion.convertObstaclesToAgvObstacleObjects(currentMap.getObstacles());
+        for (AgvMap.Obstacle o : obstacles) {
+            gridMap.setWeight(o.getX(), o.getY(), -1);
+        }
+        List<AgvMap.Station> stations =
+                agvConversion.convertStationsToAgvStationObjects(currentMap.getStations());
+        for (AgvMap.Station s : stations) {
+            gridMap.setWeight(s.getX(), s.getY(), -1);
+        }
+        gridMap.setWeight(start.getX(), start.getY(), 1);
+        gridMap.setWeight(goal.getX(), goal.getY(), 1);
+
+        TimeWindowAStar solver = new TimeWindowAStar(gridMap, table);
+        return solver.findPath(start, goal);
     }
 }

@@ -2,6 +2,8 @@ package com.lizhi.utils;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.lizhi.astart.service.NoPathFoundException;
+import com.lizhi.astart.timewindow.AlgorithmModeManager;
+import com.lizhi.astart.timewindow.ReservationTable;
 import com.lizhi.domain.po.*;
 import com.lizhi.mapper.AgvMapMapper;
 import com.lizhi.mapper.AgvMapper;
@@ -31,6 +33,7 @@ public class AgvSimulator {
     private final AgvPathMapper agvPathMapper;
     private final AgvMapper agvMapper;
     private final AgvTaskMapper agvTaskMapper;
+    private final AlgorithmModeManager algorithmModeManager;
     private final Map<String,Runnable> jobs = new ConcurrentHashMap<>();
     private final Map<String, ScheduledFuture<?>> scheduledTasks = new ConcurrentHashMap<>();
     private final Map<String, AgvSnapshot> cars = new ConcurrentHashMap<>();
@@ -157,7 +160,14 @@ public class AgvSimulator {
                 car.setTaskId(null);
                 car.setIsCharge(0);
             }
-            case "running" -> moveAgv(car,agvTask);
+            case "running" -> {
+                if (algorithmModeManager.isTimeWindow()) {
+                    moveAgvTimeWindow(car, agvTask);
+                } else {
+                    moveAgv(car, agvTask);
+                }
+            }
+            case "waiting" -> moveAgvTimeWindow(car, agvTask);
             case "stopping" ->{
                 car.setSpeed(0);
                 car.setLastUpdate(Instant.now().toString());
@@ -302,6 +312,128 @@ public class AgvSimulator {
             car.setDirection(225); // 左上
         }
         car.setLastUpdate(Instant.now().toString());
+    }
+
+    /**
+     * 构建除本车外所有车辆的时空预约表：当前位置占 t=0，承诺路径依次占后续时间步。
+     */
+    private ReservationTable buildReservation(AgvSnapshot self) {
+        ReservationTable table = new ReservationTable();
+        cars.forEach((code, other) -> {
+            if (code.equals(self.getAgvCode())) {
+                return;
+            }
+            int t = 0;
+            int px = other.getX();
+            int py = other.getY();
+            table.reserveVertex(px, py, t);
+            List<Node> path = other.getPlannedPath();
+            if (path == null) {
+                return;
+            }
+            for (Node n : path) {
+                // 跳过与当前位置相同的起点
+                if (n.getX() == px && n.getY() == py && t == 0) {
+                    continue;
+                }
+                t++;
+                table.reserveVertex(n.getX(), n.getY(), t);
+                table.reserveEdge(px, py, n.getX(), n.getY(), t - 1);
+                px = n.getX();
+                py = n.getY();
+            }
+        });
+        return table;
+    }
+
+    /**
+     * 时间窗模式单步移动：每拍基于其他车辆的时空轨迹重新规划，只执行下一拍位置。
+     */
+    public void moveAgvTimeWindow(AgvSnapshot car, AgvTask agvTask) throws NoPathFoundException {
+        String agvCode = car.getAgvCode();
+        Node currentNode = new Node(car.getX(), car.getY());
+        // 最终终点保存在非持久化内存字段，不依赖会被每拍覆盖的 plannedPath
+        Node finalEnd = car.getFinalGoal();
+        if (finalEnd == null) {
+            car.setStatus("idle");
+            car.setSpeed(0);
+            return;
+        }
+        Node startNode = new Node(agvTask.getStartPointX(), agvTask.getStartPointY());
+
+        // 未经过起点时先规划到起点，到达后切换标志再前往最终终点
+        boolean needMid = agvTask.getPassMidPoint() != null && agvTask.getPassMidPoint() == 1;
+        Node stageGoal = needMid ? startNode : finalEnd;
+
+        ReservationTable table = buildReservation(car);
+        List<Node> pathList;
+        try {
+            pathList = agvUnlock.timeWindowPath(currentNode, stageGoal, table);
+        } catch (NoPathFoundException e) {
+            // 暂时无法规划，本拍原地等待，下一拍重试
+            car.setStatus("waiting");
+            car.setSpeed(0);
+            car.setLastUpdate(Instant.now().toString());
+            return;
+        }
+
+        // 路径长度为 1：当前已在本阶段目标点
+        if (pathList.size() <= 1) {
+            if (needMid) {
+                // 已到达起点，切换到前往终点阶段，本拍不移动
+                agvTask.setPassMidPoint(0);
+                car.setStatus("running");
+                car.setSpeed(0);
+                car.setPlannedPath(pathList);
+                car.setLastUpdate(Instant.now().toString());
+                return;
+            }
+            // 已到达最终终点，任务完成
+            agvTask.setStatus("completed");
+            agvTask.setActualEndTime(LocalDateTime.now());
+            agvTask.setDescription(agvCode + "已经到达目标点位");
+            car.setDescription(agvTask.getDescription());
+            car.setStatus("idle");
+            car.setSpeed(0);
+            car.setPlannedPath(pathList);
+            agvPathMapper.deleteByAgvCode(agvCode);
+            return;
+        }
+
+        // 每拍实际规划路径写回 plannedPath，前端据此显示与车辆移动一致的真实轨迹
+        car.setPlannedPath(pathList);
+        savePathToMap(pathList, agvCode);
+
+        // 只取下一拍位置（t=1）
+        Node nextNode = pathList.get(1);
+        int dx = nextNode.getX() - car.getX();
+        int dy = nextNode.getY() - car.getY();
+        if (dx == 0 && dy == 0) {
+            // 下一拍需要等待冲突解除
+            car.setStatus("waiting");
+            car.setSpeed(0);
+        } else {
+            car.setStatus("running");
+            car.setSpeed(150);
+            car.setX(nextNode.getX());
+            car.setY(nextNode.getY());
+            updateDirection(car, dx, dy);
+            // 移动后路径视图从车辆新位置开始，保证前端路径起点与车辆实际位置一致
+            car.setPlannedPath(new ArrayList<>(pathList.subList(1, pathList.size())));
+        }
+        car.setLastUpdate(Instant.now().toString());
+    }
+
+    private void updateDirection(AgvSnapshot car, int dx, int dy) {
+        if (dx > 0 && dy == 0) {
+            car.setDirection(0);
+        } else if (dx < 0 && dy == 0) {
+            car.setDirection(180);
+        } else if (dx == 0 && dy > 0) {
+            car.setDirection(90);
+        } else if (dx == 0 && dy < 0) {
+            car.setDirection(270);
+        }
     }
 
     /**
