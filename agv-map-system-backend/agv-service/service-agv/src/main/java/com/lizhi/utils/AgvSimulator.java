@@ -33,6 +33,14 @@ public class AgvSimulator {
     private final AgvTaskMapper agvTaskMapper;
     private final Map<String,Runnable> jobs = new ConcurrentHashMap<>();
     private final Map<String, ScheduledFuture<?>> scheduledTasks = new ConcurrentHashMap<>();
+    private final Map<String, AgvSnapshot> cars = new ConcurrentHashMap<>();
+
+    /**
+     * 获取仿真器中的内存车辆对象
+     */
+    public AgvSnapshot getCar(String agvCode){
+        return cars.get(agvCode);
+    }
 
     // 定义基础更新间隔（毫秒）
     private static final long BASE_INTERVAL = 1000; // 1秒为基础单位
@@ -73,6 +81,7 @@ public class AgvSimulator {
             }
         };
         jobs.put(agvCode,job);
+        cars.put(agvCode, car);
         // 使用固定更新间隔
         ScheduledFuture<?> scheduledTask = taskScheduler.scheduleAtFixedRate(job, BASE_INTERVAL);
         scheduledTasks.put(agvCode, scheduledTask);
@@ -325,6 +334,7 @@ public class AgvSimulator {
         }
         scheduledTasks.remove(agvId);
         jobs.remove(agvId);
+        cars.remove(agvId);
     }
 
 

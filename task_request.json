@@ -1,0 +1,7 @@
+{
+  "taskCode": "T002",
+  "agvCode": "AGVplus0001",
+  "currentPoint": {"id": "current", "x": 0, "y": 0},
+  "startPoint": {"id": "station01", "x": 2, "y": 2},
+  "endPoint": {"id": "station02", "x": 17, "y": 2}
+}

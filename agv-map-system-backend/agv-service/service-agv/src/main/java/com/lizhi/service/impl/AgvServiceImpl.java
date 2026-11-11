@@ -78,8 +78,8 @@ public class AgvServiceImpl implements AgvService {
         agvTask.setStartPointX(agvTaskDTO.getStartPoint().getX());
         agvTask.setStartPointY(agvTaskDTO.getStartPoint().getY());
         agvTask.setPassMidPoint(0);
-        // 获取AGV当前状态
-        AgvSnapshot agv = agvMapper.getAgv(agvCode);
+        // 获取仿真器内存车辆对象
+        AgvSnapshot agv = agvSimulator.getCar(agvCode);
         if (agv == null) {
             throw new NoPathFoundException("未找到AGV小车: " + agvCode);
         }
@@ -180,7 +180,7 @@ public class AgvServiceImpl implements AgvService {
     public void chargeAgv(String agvCode) throws NoPathFoundException {
         //导航到最近的充电点位
         AgvMap currentMap = agvMapMapper.getCurrentMap();
-        AgvSnapshot agv = agvMapper.getAgv(agvCode);
+        AgvSnapshot agv = agvSimulator.getCar(agvCode);
         Integer taskId = agv.getTaskId();
         if (taskId != null){
             agvTaskService.cancelTask(agv.getTaskId());
@@ -245,12 +245,11 @@ public class AgvServiceImpl implements AgvService {
     public void stopAgv(AgvSnapshotDTO agvSnapshotDTO) {
         AgvSnapshot agvSnapshot = new AgvSnapshot();
         BeanUtils.copyProperties(agvSnapshotDTO,agvSnapshot);
-        AgvSnapshot agv = agvMapper.getAgv(agvSnapshot.getAgvCode());
+        AgvSnapshot agv = agvSimulator.getCar(agvSnapshot.getAgvCode());
         AgvTask agvTask = agvTaskMapper.getById(agv.getTaskId());
         agvTask.setStatus("paused");
         agv.setStatus("stopping");
         agvTaskMapper.updateTask(agvTask);
-        agvMapper.updateAgv(agv);
     }
 
     /**
@@ -261,13 +260,12 @@ public class AgvServiceImpl implements AgvService {
     public void startAgv(AgvSnapshotDTO agvSnapshotDTO) {
         AgvSnapshot agvSnapshot = new AgvSnapshot();
         BeanUtils.copyProperties(agvSnapshotDTO,agvSnapshot);
-        AgvSnapshot agv = agvMapper.getAgv(agvSnapshot.getAgvCode());
+        AgvSnapshot agv = agvSimulator.getCar(agvSnapshot.getAgvCode());
         AgvTask agvTask = agvTaskMapper.getById(agv.getTaskId());
         agv.setStatus("running");
         agvTask.setStatus("processing");
         agv.setSpeed(150);
         agvTaskMapper.updateTask(agvTask);
-        agvMapper.updateAgv(agv);
     }
 
     /**
@@ -278,10 +276,10 @@ public class AgvServiceImpl implements AgvService {
     public void setSpeed(AgvSnapshotDTO agvSnapshotDTO) {
         String agvCode = agvSnapshotDTO.getAgvCode();
         Integer speed = agvSnapshotDTO.getSpeed();
-        AgvSnapshot agvSnapshot = new AgvSnapshot();
-        agvSnapshot.setAgvCode(agvCode);
-        agvSnapshot.setSpeed(speed);
-        agvMapper.updateSpeed(agvSnapshot);
+        AgvSnapshot agv = agvSimulator.getCar(agvCode);
+        if (agv != null) {
+            agv.setSpeed(speed);
+        }
     }
 
     /**
@@ -291,11 +289,19 @@ public class AgvServiceImpl implements AgvService {
     public void clearAllTask() {
         List<AgvSnapshot> allAgv = agvMapper.getAllAgv();
         for (AgvSnapshot agvSnapshot : allAgv) {
-            AgvTask agvTask = agvTaskMapper.getById(agvSnapshot.getTaskId());
-            agvSnapshot.setStatus("idle");
-            agvTask.setStatus("cancelled");
-            agvTaskMapper.updateTask(agvTask);
-            agvMapper.updateAgv(agvSnapshot);
+            AgvSnapshot car = agvSimulator.getCar(agvSnapshot.getAgvCode());
+            if (car != null) {
+                if (car.getTaskId() != null) {
+                    AgvTask agvTask = agvTaskMapper.getById(car.getTaskId());
+                    if (agvTask != null) {
+                        agvTask.setStatus("cancelled");
+                        agvTaskMapper.updateTask(agvTask);
+                    }
+                }
+                car.setStatus("idle");
+                car.setTaskId(null);
+                car.setPlannedPath(null);
+            }
         }
     }
 }
