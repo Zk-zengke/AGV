@@ -1,2 +1,2 @@
 https://github.com/alibaba/nacos/releases/download/2.5.5/nacos-server-2.5.5.zip
-下载后解压到 D:\DoubaoWork\课设\，进入 nacos\bin 执行 startup.cmd -m standalone，再访问 http://127.0.0.1:8848/nacos
+下载后解压到 D:\课设\，进入 nacos\bin 执行 startup.cmd -m standalone，再访问 http://127.0.0.1:8848/nacos
