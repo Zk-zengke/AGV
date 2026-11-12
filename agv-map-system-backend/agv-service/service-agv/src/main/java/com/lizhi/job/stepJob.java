@@ -57,35 +57,17 @@ public class stepJob {
     }
 
     /**
-     * 更新小车当前状态
-     * @throws NoPathFoundException
+     * 全局巡检：驱动已收敛，每辆车由 AgvSimulator 内部定时任务对内存对象 step，
+     * 这里不再读取数据库对象重复 step，只遍历内存车辆做低电量充电巡检。
      */
     @Scheduled(cron = "0/1 * * * * ?")  // 每 1 秒
     public void steploop() throws NoPathFoundException {
-        List<AgvSnapshot> agvList = agvMapper.getAllAgv();
-        for (AgvSnapshot agvSnapshot : agvList) {
-            agvSimulator.step(agvSnapshot);
-            if (agvSnapshot.getBattery() <= 30 && agvSnapshot.getIsCharge() == 0){
-                agvFeignClient.chargeAgv(agvSnapshot.getAgvCode());
+        List<AgvSnapshot> agvList = agvSimulator.getAllCars();
+        for (AgvSnapshot car : agvList) {
+            if (car.getBattery() <= 30 && car.getIsCharge() == 0){
+                agvFeignClient.chargeAgv(car.getAgvCode());
             }
         }
-        /*for (int i = 0; i < agvList.size();i++){
-            AgvShape agvShape1 = saveAgvShap(agvList.get(i));
-            for (int j = 0; j < agvList.size();j++){
-                boolean collides = false;
-                if (i != j){
-                   AgvShape agvShape2 = saveAgvShap(agvList.get(j));
-                   collides = agvCollisionAvoidance.collidesWith(agvShape1, agvShape2);
-                }
-                if (collides && agvList.get(i).getStatus().equals("running")){
-                    AgvSnapshotDTO dto = new AgvSnapshotDTO();
-                    dto.setAgvCode(agvList.get(i).getAgvCode());
-                    agvService.stopAgv(dto);
-                    break;
-                }
-           }
-
-        }*/
     }
 
     /**

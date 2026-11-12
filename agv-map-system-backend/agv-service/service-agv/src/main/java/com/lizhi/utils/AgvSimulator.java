@@ -45,6 +45,14 @@ public class AgvSimulator {
         return cars.get(agvCode);
     }
 
+    /**
+     * 获取仿真器中全部内存车辆对象（快照副本），供全局巡检使用。
+     * 内存对象是唯一状态源，巡检不再读取数据库对象。
+     */
+    public List<AgvSnapshot> getAllCars(){
+        return new ArrayList<>(cars.values());
+    }
+
     // 定义基础更新间隔（毫秒）
     private static final long BASE_INTERVAL = 1000; // 1秒为基础单位
 

@@ -6,8 +6,8 @@
         <span class="title-sub">车间 AGV 集群路径规划仿真与调度可视化系统</span>
       </div>
       <div class="meta">
-        <span class="poll-dot" :class="{ on: !error }"></span>
-        <span class="meta-text">{{ error ? '连接异常' : '定时轮询中 · 1 秒/次' }}</span>
+        <span class="poll-dot" :class="{ on: wsConnected }"></span>
+        <span class="meta-text">{{ wsConnected ? 'WebSocket 已连接 · 实时推送' : '连接断开，正在重连…' }}</span>
         <span class="meta-text" v-if="lastUpdate">
           最后更新 {{ formatTime(lastUpdate) }}
         </span>
@@ -49,7 +49,6 @@ import CarPanel from './components/CarPanel.vue'
 import TaskPanel from './components/TaskPanel.vue'
 import AlgorithmSwitch from './components/AlgorithmSwitch.vue'
 import { getCurrentMap } from './api/map'
-import { listAgv } from './api/agv'
 
 const mapData = ref(null)
 const carList = ref([])
@@ -57,7 +56,10 @@ const activeAgvCodes = ref([])
 const loading = ref(true)
 const error = ref('')
 const lastUpdate = ref(null)
-let timer = null
+const wsConnected = ref(false)
+let ws = null
+let reconnectTimer = null
+let manualClose = false
 
 // 多车路径：为每辆任务车辆分配颜色，绑定其实时 plannedPath
 const PATH_COLORS = ['#38e1c6', '#a78bfa', '#fb923c', '#f472b6', '#60a5fa']
@@ -92,13 +94,41 @@ async function onMapSaved() {
   }
 }
 
-async function refreshCars() {
-  try {
-    carList.value = await listAgv()
-    lastUpdate.value = new Date()
-    error.value = ''
-  } catch (e) {
-    error.value = e.message
+function buildWsUrl() {
+  const proto = window.location.protocol === 'https:' ? 'wss' : 'ws'
+  return `${proto}://${window.location.host}/ws/agv`
+}
+
+function connectWs() {
+  ws = new WebSocket(buildWsUrl())
+
+  ws.onopen = () => {
+    wsConnected.value = true
+  }
+
+  ws.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data)
+      if (msg.code === 200) {
+        carList.value = msg.data || []
+        lastUpdate.value = new Date()
+        error.value = ''
+      }
+    } catch (e) {
+      // 无法解析的消息直接忽略
+    }
+  }
+
+  ws.onerror = () => {
+    wsConnected.value = false
+  }
+
+  ws.onclose = () => {
+    wsConnected.value = false
+    // 非手动关闭时自动重连
+    if (!manualClose) {
+      reconnectTimer = setTimeout(connectWs, 2000)
+    }
   }
 }
 
@@ -110,8 +140,7 @@ function formatTime(d) {
 onMounted(async () => {
   try {
     mapData.value = await getCurrentMap()
-    await refreshCars()
-    timer = setInterval(refreshCars, 1000)
+    connectWs()
   } catch (e) {
     error.value = e.message
   } finally {
@@ -120,7 +149,9 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
-  if (timer) clearInterval(timer)
+  manualClose = true
+  if (reconnectTimer) clearTimeout(reconnectTimer)
+  if (ws) ws.close()
 })
 </script>
 
